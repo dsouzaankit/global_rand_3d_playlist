@@ -42,9 +42,11 @@ $script:DlnaObfuscationTmpSuffix = '.tmp'
 # Legacy rename forms (still restored if found).
 $script:DlnaObfuscationPrefix = '_dlna_obf_'
 $script:DlnaObfuscationSuffix = '.dlna_obf'
+# Playable DLNA media plus AviSynth scripts under the share root (fisheye_temp\avs).
 $script:DlnaMediaExtensions = @(
     '.mkv', '.mp4', '.m4v', '.mov', '.webm', '.ts', '.m2ts', '.mts',
-    '.avi', '.wmv', '.mpg', '.mpeg', '.m2v', '.flv', '.3gp', '.ogv', '.ogg'
+    '.avi', '.wmv', '.mpg', '.mpeg', '.m2v', '.flv', '.3gp', '.ogv', '.ogg',
+    '.avs'
 )
 
 function Get-DlnaSegmentRootAppDataFallback {
