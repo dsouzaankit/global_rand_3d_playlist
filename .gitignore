@@ -8,16 +8,18 @@ __pycache__/
 *.dpl
 *.dpl.transcode_queue_last
 
-# Runtime / sync artifacts
+# Log folders and files
 op_logs/
+**/transcode_logs/
+**/logs/
+*.log
+**/*.log
+**/transcode_lock_owner.txt
+
+# Runtime / sync artifacts
 avs/
 AutoHotkey/
 ign/
-
-# Transcode logs and lock files
-individual_transcode/transcode_logs/
-individual_transcode/**/*.log
-individual_transcode/**/transcode_lock_owner.txt
 
 # Secrets
 .env
