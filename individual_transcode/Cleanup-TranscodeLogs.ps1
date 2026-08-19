@@ -5,7 +5,7 @@
 
 .DESCRIPTION
   Default: delete all *.log under every discoverable playlist transcode_logs\ tree
-  (F:\f1_media, P:\bbf_media, P:\all_scripts, F:\all_scripts) plus global fisheye_temp\logs.
+  (F:\f1_media, P:\bbf_media, P:\all_scripts) plus global fisheye_temp\logs.
   Removes fisheye_batch_prepare\*.finished markers.
 
   Locked logs (active encode/batch) are truncated to zero bytes when delete fails.
@@ -20,7 +20,7 @@
 
 .PARAMETER DiscoverMediaRoots
   Top-level folders to search for *\3d_playlist_local\individual_transcode\transcode_logs.
-  Default: F:\f1_media, P:\bbf_media, P:\all_scripts, F:\all_scripts
+  Default: F:\f1_media, P:\bbf_media, P:\all_scripts
 
 .PARAMETER IncludeFisheyeTempLogs
   Also delete *.log under FisheyeTempLogsRoot. Default: true.
@@ -75,7 +75,7 @@
 param(
     [string] $LogsRoot = '',
     [switch] $LocalOnly,
-    [string[]] $DiscoverMediaRoots = @('F:\f1_media', 'P:\bbf_media', 'P:\all_scripts', 'F:\all_scripts'),
+    [string[]] $DiscoverMediaRoots = @('F:\f1_media', 'P:\bbf_media', 'P:\all_scripts'),
     [switch] $IncludeFisheyeTempLogs,
     [string] $FisheyeTempLogsRoot = 'F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs',
     [switch] $NoFisheyeTempLogs,

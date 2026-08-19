@@ -3,7 +3,7 @@ Run sequence:
 # Canonical:     P:\all_scripts\global_rand_3d_playlist  (run here; no F:\all_scripts hub)
 # Transcode:     robocopy from P:\all_scripts\3d_playlist_local\individual_transcode on batch start
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
-# DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; if F: missing, Ensure-DlnaSegmentRoot maps via subst)
+# DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; dummy subst F: via Ensure-DlnaSegmentRoot; never a real F: volume)
 
 P:
 cd P:\all_scripts\global_rand_3d_playlist

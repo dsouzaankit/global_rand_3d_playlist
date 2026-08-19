@@ -5,14 +5,15 @@
   Flat = one fisheye eye; SBS = L/R hstack. Defaults: native eye, lanczos v360, av1_qsv 50M mezzanine.
 
 .EXAMPLE
-  .\Run-FisheyeV360.ps1 -DryRun
+  .\Run-FisheyeV360.ps1 -LiteralPath "D:\clip.mp4" -DryRun
 .EXAMPLE
-  .\Run-FisheyeV360.ps1 -DurationSec 120
+  .\Run-FisheyeV360.ps1 -LiteralPath "D:\clip.mp4" -DurationSec 120
 #>
 [CmdletBinding()]
 param(
-    [string] $LiteralPath = 'F:\f1_media\fisheye_test\faststart\pervmom_slimthick_vic_hi_2.faststart.mp4',
-    [string] $OutputDirectory = 'F:\f1_media\fisheye_test',
+    [Parameter(Mandatory = $true)]
+    [string] $LiteralPath,
+    [string] $OutputDirectory = '',
     [string] $Ffmpeg = 'ffmpeg',
     [double] $SsSec = 0,
     [int] $DurationSec = 0,
@@ -230,6 +231,9 @@ function Resolve-FisheyeTranscodeSettings {
 
 $fullInput = [System.IO.Path]::GetFullPath($LiteralPath)
 if (-not (Test-Path -LiteralPath $fullInput)) { throw "Input not found: $fullInput" }
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
+    $OutputDirectory = [System.IO.Path]::GetDirectoryName($fullInput)
+}
 $inputExt = [System.IO.Path]::GetExtension($fullInput).ToLowerInvariant()
 # Keep in sync with Run-V360PrepareFisheye / Install-ContextMenu media extensions (+ .avs).
 $allowedInputExt = @('.avs', '.mp4', '.mkv', '.mov', '.m4v', '.avi', '.wmv', '.ts', '.m2ts', '.webm')

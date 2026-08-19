@@ -1241,8 +1241,7 @@ function Resolve-CompanionBinaryFolder {
     }
     foreach ($c in @(
         'P:\all_scripts\AutoHotkey',
-        'D:\all_scripts\AutoHotkey',
-        'F:\all_scripts\AutoHotkey'
+        'D:\all_scripts\AutoHotkey'
     )) {
         [void]$candidates.Add($c)
     }

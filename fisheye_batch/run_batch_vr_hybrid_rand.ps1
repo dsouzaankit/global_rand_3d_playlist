@@ -46,7 +46,7 @@ $playlistLocal = $projectRoot
 $mediaRoot = $projectRoot
 $syncSource = Get-RandTranscodeSyncSource
 
-# Ensure Skybox DLNA root before any Join-Path on F:\... (pwsh validates drive letters).
+# Ensure Skybox DLNA root (dummy subst F: + AppData store) before any Join-Path on F:\... (pwsh validates drive letters).
 $leafEarly = Join-Path $syncSource 'individual_transcode\Invoke-LeafFfmpegControl.ps1'
 if (-not (Test-Path -LiteralPath $leafEarly -PathType Leaf)) {
     $leafEarly = Join-Path $projectRoot 'individual_transcode\Invoke-LeafFfmpegControl.ps1'

@@ -21,7 +21,8 @@ $script:LeafFfmpegOutputLeaves = @(
     '3d_op_00_VR190.mkv', '3d_op_01_VR190.mkv', '3d_op_%02d_VR190.mkv'
 )
 # Minute segments: flat -> ...\flat\, fisheye -> ...\fisheye\, hybrid batch -> ...\hybrid\ (under this root).
-# Preferred path is also the Skybox web-client DLNA share folder - keep this string stable.
+# Preferred path is the Skybox web-client DLNA share folder — keep this string stable.
+# Always dummy subst F: (AppData store); never a real F: volume.
 $script:DlnaSegmentRootPreferred = 'F:\f1_media\3d_fullsbs_trans'
 $script:DlnaSegmentRootDefault = $script:DlnaSegmentRootPreferred
 $script:DlnaSegmentRootDriveLetter = 'F'
@@ -175,9 +176,9 @@ function Ensure-DlnaSegmentRoot {
     <#
     .SYNOPSIS
       Resolve the DLNA segment root used by flat / fisheye / hybrid workflows.
-      Prefer F:\f1_media\3d_fullsbs_trans (Skybox DLNA share path). When F: is missing,
-      store under %AppData%\3d_playlist_local and recreate the same F:\...\3d_fullsbs_trans
-      path via subst + directory junction so the Skybox share path keeps working.
+      Always store under %AppData%\3d_playlist_local. During the run, keep Explorer dummy F: via subst
+      to %AppData%\f1_media_F_subst + junction so F:\f1_media\3d_fullsbs_trans stays the
+      Skybox share path. Never write onto a real F: volume. Quit clears the dummy letter.
       On ensure, restores any <sha256>.tmp media left from a prior quit (via .dlna_obf_map.json).
     #>
     param([switch] $Force)
@@ -189,7 +190,6 @@ function Ensure-DlnaSegmentRoot {
     $appDataRoot = Get-DlnaSegmentRootAppDataFallback
     $substMount = Get-DlnaSegmentRootSubstMount
     $letter = $script:DlnaSegmentRootDriveLetter
-    $driveRoot = ('{0}:\' -f $letter)
 
     # One-time rename from legacy %AppData%\3d_fullsbs_trans if present and new path empty/missing.
     $appDataParent = [Environment]::GetFolderPath('ApplicationData')
@@ -207,42 +207,32 @@ function Ensure-DlnaSegmentRoot {
         }
     }
 
-    if (Test-DlnaSegmentRootDrivePresent -Letter $letter) {
-        $substTarget = Get-SubstDriveTarget -Letter $letter
-        $usingOurSubst = (-not [string]::IsNullOrWhiteSpace($substTarget)) -and
-            $substTarget.Equals($substMount, [StringComparison]::OrdinalIgnoreCase)
-        if ($usingOurSubst) {
-            [void](Ensure-DirectoryJunction -LinkPath (Join-Path $substMount 'f1_media\3d_fullsbs_trans') -TargetPath $appDataRoot)
-            return (Complete-DlnaSegmentRootEnsure -Root $preferred -Mode 'appdata-subst')
-        }
-        # Real (or other) F: - keep Skybox path on the drive; do not redirect to AppData.
-        return (Complete-DlnaSegmentRootEnsure -Root $preferred -Mode 'drive')
-    }
-
-    # F: missing: AppData store + subst so preferred path still resolves for Skybox DLNA.
     [void][System.IO.Directory]::CreateDirectory($appDataRoot)
     [void][System.IO.Directory]::CreateDirectory((Join-Path $substMount 'f1_media'))
     [void](Ensure-DirectoryJunction -LinkPath (Join-Path $substMount 'f1_media\3d_fullsbs_trans') -TargetPath $appDataRoot)
 
     $existingSubst = Get-SubstDriveTarget -Letter $letter
-    if (-not [string]::IsNullOrWhiteSpace($existingSubst) -and
-        -not $existingSubst.Equals($substMount, [StringComparison]::OrdinalIgnoreCase)) {
-        throw ("Drive {0}: is already subst'd to {1}; cannot map DLNA fallback mount {2}." -f `
-            $letter, $existingSubst, $substMount)
-    }
-    if ([string]::IsNullOrWhiteSpace($existingSubst)) {
+    if (-not [string]::IsNullOrWhiteSpace($existingSubst)) {
+        if (-not $existingSubst.Equals($substMount, [StringComparison]::OrdinalIgnoreCase)) {
+            throw ("Drive {0}: is already subst'd to {1}; dummy DLNA F: must map to {2}." -f `
+                $letter, $existingSubst, $substMount)
+        }
+    } elseif (Test-DlnaSegmentRootDrivePresent -Letter $letter) {
+        throw ("Drive {0}: is a real volume (not our dummy subst). Unmount it so Explorer can keep dummy {0}: -> {1}." -f `
+            $letter, $substMount)
+    } else {
         $substOut = & subst.exe "${letter}:" "$substMount" 2>&1
         if (-not (Test-DlnaSegmentRootDrivePresent -Letter $letter)) {
-            throw ("Failed to subst {0}: -> {1}: {2}" -f $letter, $substMount, $substOut)
+            throw ("Failed to subst dummy {0}: -> {1}: {2}" -f $letter, $substMount, $substOut)
         }
+        Write-Host ("DLNA root: dummy {0}: subst -> {1} (store %AppData%\{2}; Skybox path {3})." -f `
+            $letter, $substMount, $script:DlnaSegmentRootAppDataLeaf, $preferred)
     }
 
     if (-not (Test-Path -LiteralPath $preferred -PathType Container)) {
-        throw ("DLNA fallback subst succeeded but preferred path missing: {0}" -f $preferred)
+        throw ("Dummy F: subst is mapped but preferred Skybox path is missing: {0}" -f $preferred)
     }
 
-    Write-Host ("DLNA root: F: missing - using %AppData%\{0} via subst {1}: -> {2} (junction keeps {3} for Skybox DLNA share)." -f `
-        $script:DlnaSegmentRootAppDataLeaf, $letter, $substMount, $preferred)
     return (Complete-DlnaSegmentRootEnsure -Root $preferred -Mode 'appdata-subst')
 }
 
@@ -257,7 +247,7 @@ function Get-FisheyeTempRoot {
 function Remove-DlnaSegmentRootSubst {
     <#
     .SYNOPSIS
-      On workflow quit: if F: is our AppData subst fallback, remove the 3d_fullsbs_trans junction
+      On workflow quit: if F: is our AppData dummy subst, remove the 3d_fullsbs_trans junction
       and subst F: /d. Does not touch a real F: volume or %AppData%\3d_playlist_local data.
     #>
     param(
@@ -337,7 +327,7 @@ function Remove-DlnaSegmentRootSubst {
 function Invoke-DlnaWorkflowQuitCleanup {
     <#
     .SYNOPSIS
-      Idempotent workflow quit: obfuscate media under DLNA root, then remove our F: subst fallback.
+      Idempotent workflow quit: obfuscate media under DLNA root, then remove dummy F: subst.
       Safe to call from parent finally and from the robocopy re-invoke wrapper finally.
     #>
     param(
