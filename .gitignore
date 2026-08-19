@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local media list and generated playlists
+2d_media_paths.txt
+*.m3u
+*.dpl
+*.dpl.transcode_queue_last
+
+# Runtime / sync artifacts
+op_logs/
+avs/
+AutoHotkey/
+ign/
+
+# Transcode logs and lock files
+individual_transcode/transcode_logs/
+individual_transcode/**/*.log
+individual_transcode/**/transcode_lock_owner.txt
+
+# Secrets
+.env
+.env.*
+*.pem
+credentials*.json
