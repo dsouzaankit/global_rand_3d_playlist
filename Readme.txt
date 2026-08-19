@@ -5,6 +5,8 @@ Run sequence:
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
 # DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; dummy subst F: during run via
 #                Ensure-DlnaSegmentRoot; never a real F: volume; quit clears dummy letter)
+#   If a real F: (or subst to some other folder) is already mapped, Ensure-DlnaSegmentRoot
+#   throws and the batch stops — unmount it so the dummy letter can be created.
 #   Run start (fisheye + hybrid batches): Ensure-DlnaSegmentRoot -Force recreates trees and restores
 #     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit.
 #   Run quit (both batches finally): Invoke-DlnaWorkflowQuitCleanup obfuscates media and .avs to
