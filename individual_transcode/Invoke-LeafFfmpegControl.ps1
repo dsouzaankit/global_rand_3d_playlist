@@ -46,7 +46,7 @@ $script:DlnaObfuscationSuffix = '.dlna_obf'
 $script:DlnaMediaExtensions = @(
     '.mkv', '.mp4', '.m4v', '.mov', '.webm', '.ts', '.m2ts', '.mts',
     '.avi', '.wmv', '.mpg', '.mpeg', '.m2v', '.flv', '.3gp', '.ogv', '.ogg',
-    '.avs'
+    '.avs', '.avsi'
 )
 
 function Get-DlnaSegmentRootAppDataFallback {
@@ -623,6 +623,7 @@ function Restore-DlnaObfuscatedMedia {
     <#
     .SYNOPSIS
       Detect <sha256>.tmp (via .dlna_obf_map.json) and legacy _dlna_obf_* / *_v.tmp names; restore originals.
+      If the clear dest already exists (stale leftover from a crashed run), overwrite it with the mapped .tmp.
     #>
     param(
         [string] $Root = '',
@@ -695,15 +696,7 @@ function Restore-DlnaObfuscatedMedia {
         }
 
         $dest = [System.IO.Path]::Combine($destDir, $clearLeaf)
-        if (Test-Path -LiteralPath $dest -PathType Leaf) {
-            $dupAction = Clear-DlnaPathBestEffort -Path $f.FullName -DryRun:$DryRun.IsPresent
-            if ($dupAction -eq 'failed') { $failed++ } else { $skipped++ }
-            if ($map.ContainsKey($relObf)) {
-                $map.Remove($relObf)
-                $mapDirty = $true
-            }
-            continue
-        }
+        # Leftover clear dest (crashed run / 0-byte 3d_op) is overwritten by Rename-DlnaPathBestEffort / Move-Item -Force.
 
         if ($destDir.Equals($f.DirectoryName, [StringComparison]::OrdinalIgnoreCase)) {
             $action = Rename-DlnaPathBestEffort -Path $f.FullName -DestinationLeaf $clearLeaf -DryRun:$DryRun.IsPresent

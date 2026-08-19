@@ -10,7 +10,9 @@ Run sequence:
 #   another drive letter on conflict: Skybox's share, Explorer context-menu registry, and
 #   script paths are all fixed at F:\f1_media\3d_fullsbs_trans.
 #   Run start (fisheye + hybrid batches): Ensure-DlnaSegmentRoot -Force recreates trees and restores
-#     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit.
+#     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit. If a leftover
+#     clear dest already exists (crashed run / 0-byte 3d_op), overwrite it with the mapped .tmp.
+#     Unmapped .tmp (empty/missing map) stay hashed — Cleanup-DlnaSegmentRoot.ps1 to delete.
 #   Run quit (both batches finally): Invoke-DlnaWorkflowQuitCleanup obfuscates media and .avs to
 #     <sha256(relativePath)>.tmp (scrambled .dlna_obf_map.json; includes fisheye_temp\avs\*.avs),
 #     then Remove-DlnaSegmentRootSubst (clears dummy subst F: + junction).
@@ -73,7 +75,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #   -SkipPotPlayer / -DryRun / -SkipPotPlayerSeek / -ResumeAfter same as fisheye batch
 #   Ref: https://skybox.xyz/support/How-to-Adjust-2D&3D&VR-Video-Formats
 #   Logs: individual_transcode\LOGS.md (after sync) + transcode_logs\hybrid_batch\
-#   Quit: obfuscates DLNA media and .avs + clears dummy F: (see DLNA output block above)
+#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy F:
 
 # =============================================================================
 # FISHEYE-only batch (v360 mezzanine + DLNA chase; uses 2d_media_paths.txt, not local media_files)
@@ -87,7 +89,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 #   -SkipPotPlayer to skip gate; -DryRun to preview queue; -SkipPotPlayerSeek for 0s start on every clip
 #   Already-3D (Test-RandSkipStreamTo3DMediaName): Run-SegmentCopyAsIs -> ...\hybrid\ (not skipped; no prepare/chase)
-#   Quit: obfuscates DLNA media and .avs + clears dummy F: (see DLNA output block above)
+#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy F:
 #
 # DLNA output (same 60-second segment rules as 3d_playlist_local; see that Readme + individual_transcode\LOGS.md):
 #   F:\f1_media\3d_fullsbs_trans\fisheye\3d_op_%02d_LR_180_FISHEYE.mkv  (two rotating ~60s buffers)
