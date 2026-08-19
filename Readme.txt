@@ -5,6 +5,18 @@ Run sequence:
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
 # DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; dummy subst F: during run via
 #                Ensure-DlnaSegmentRoot; never a real F: volume; quit clears dummy letter)
+#   Run start (fisheye + hybrid batches): Ensure-DlnaSegmentRoot -Force recreates trees and restores
+#     any <sha256>.tmp media (via .dlna_obf_map.json) from a prior quit.
+#   Run quit (both batches finally): Invoke-DlnaWorkflowQuitCleanup obfuscates media to
+#     <sha256(relativePath)>.tmp (scrambled .dlna_obf_map.json; also hides fisheye_temp\avs),
+#     then Remove-DlnaSegmentRootSubst (clears dummy subst F: + junction).
+#   On error: same obfuscate, but -KeepLogs retains *.log / logs\ (including fisheye_temp\logs).
+#     Triggers: clip/child failures, fatal batch stop (exit 1).
+#     Batch timeout (124) and user cancel (130) purge DLNA-root logs like clean success.
+#   Manual delete (former quit clear): Cleanup-DlnaSegmentRoot.ps1 (beside this Readme)
+#     -> Clear-DlnaSegmentRootContents in individual_transcode\Invoke-LeafFfmpegControl.ps1
+#   Hard-kill of the batch console skips finally (no obfuscate/subst cleanup until next normal quit
+#     or manual Cleanup-DlnaSegmentRoot.ps1).
 
 P:
 cd P:\all_scripts\global_rand_3d_playlist
@@ -57,6 +69,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #   -SkipPotPlayer / -DryRun / -SkipPotPlayerSeek / -ResumeAfter same as fisheye batch
 #   Ref: https://skybox.xyz/support/How-to-Adjust-2D&3D&VR-Video-Formats
 #   Logs: individual_transcode\LOGS.md (after sync) + transcode_logs\hybrid_batch\
+#   Quit: obfuscates DLNA media + clears dummy F: (see DLNA output block above)
 
 # =============================================================================
 # FISHEYE-only batch (v360 mezzanine + DLNA chase; uses 2d_media_paths.txt, not local media_files)
@@ -70,6 +83,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 #   -SkipPotPlayer to skip gate; -DryRun to preview queue; -SkipPotPlayerSeek for 0s start on every clip
 #   Already-3D (Test-RandSkipStreamTo3DMediaName): Run-SegmentCopyAsIs -> ...\hybrid\ (not skipped; no prepare/chase)
+#   Quit: obfuscates DLNA media + clears dummy F: (see DLNA output block above)
 #
 # DLNA output (same 60-second segment rules as 3d_playlist_local; see that Readme + individual_transcode\LOGS.md):
 #   F:\f1_media\3d_fullsbs_trans\fisheye\3d_op_%02d_LR_180_FISHEYE.mkv  (two rotating ~60s buffers)

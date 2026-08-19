@@ -706,6 +706,7 @@ $companionsStarted = $false
 $batchCancelled = $false
 $batchTimedOut = $false
 $batchExitCode = 0
+$batchFatalError = $false
 $lastSuccessfulMedia = ''
 $batchOrchestratorStartUtc = Get-BatchOrchestratorStartTimeUtc
 $batchDeadlineUtcIso = Get-BatchDeadlineUtcIso -StartUtcIso $batchOrchestratorStartUtc -TimeoutSec $BatchTimeoutSec
@@ -1043,15 +1044,20 @@ try {
     if ($failures.Count -gt 0) {
         Write-Host 'Failures:'
         $failures | ForEach-Object { Write-Host "  $_" }
+        if ($batchExitCode -eq 0) { $batchExitCode = 1 }
     }
 }
 catch [System.UnauthorizedAccessException] {
     Write-Warning "Access denied for mutex '$mutexName'."
+    $batchFatalError = $true
+    if ($batchExitCode -eq 0) { $batchExitCode = 1 }
     Start-Sleep -Seconds 8
 }
 catch {
     $errText = if ($_.Exception) { $_.Exception.Message } else { [string]$_ }
     Write-Warning "Batch stopped: $errText"
+    $batchFatalError = $true
+    if ($batchExitCode -eq 0) { $batchExitCode = 1 }
     Write-Host 'Batch window closing in 12 seconds (check messages above)...'
     Start-Sleep -Seconds 12
 }
@@ -1069,9 +1075,37 @@ finally {
     if ($batchCancelled -or $batchTimedOut) {
         Stop-FisheyeBatchFfmpeg
     }
-    if ($null -ne $mutex -and $hasHandle) {
-        $mutex.ReleaseMutex() | Out-Null
-        $mutex.Dispose()
+    if (-not $DryRun -and (Get-Command Invoke-DlnaWorkflowQuitCleanup -ErrorAction SilentlyContinue)) {
+        $isTimeoutOrCancel = $batchTimedOut -or $batchCancelled -or
+            ($batchExitCode -eq 124) -or ($batchExitCode -eq 130)
+        $keepLogsOnError = (-not $isTimeoutOrCancel) -and (
+            $batchFatalError -or ($failures.Count -gt 0) -or ($batchExitCode -ne 0)
+        )
+        try {
+            [void](Invoke-DlnaWorkflowQuitCleanup -KeepLogs:$keepLogsOnError)
+        } catch {
+            Write-Warning ("DLNA quit cleanup failed: {0}" -f $_.Exception.Message)
+        }
+    } elseif (-not $DryRun -and (Get-Command Obfuscate-DlnaSegmentRootMedia -ErrorAction SilentlyContinue)) {
+        $isTimeoutOrCancel = $batchTimedOut -or $batchCancelled -or
+            ($batchExitCode -eq 124) -or ($batchExitCode -eq 130)
+        $keepLogsOnError = (-not $isTimeoutOrCancel) -and (
+            $batchFatalError -or ($failures.Count -gt 0) -or ($batchExitCode -ne 0)
+        )
+        try {
+            [void](Obfuscate-DlnaSegmentRootMedia -KeepLogs:$keepLogsOnError)
+        } catch {
+            Write-Warning ("DLNA root media obfuscate on quit failed: {0}" -f $_.Exception.Message)
+        }
+        if (Get-Command Remove-DlnaSegmentRootSubst -ErrorAction SilentlyContinue) {
+            try { [void](Remove-DlnaSegmentRootSubst) } catch {
+                Write-Warning ("DLNA root F: subst cleanup on quit failed: {0}" -f $_.Exception.Message)
+            }
+        }
+    }
+    if ($null -ne $mutex -and $mutexAcquired) {
+        try { $mutex.ReleaseMutex() | Out-Null } catch { }
+        try { $mutex.Dispose() } catch { }
         Write-Host 'Mutex released.'
     }
 }
