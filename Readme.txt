@@ -9,9 +9,11 @@ Run sequence:
 #   throws and the batch stops — unmount it so the dummy letter can be created. Do not pick
 #   another drive letter on conflict: Skybox's share, Explorer context-menu registry, and
 #   script paths are all fixed at F:\f1_media\3d_fullsbs_trans.
-#   av1_qsv (flat DLNA, fisheye pass-1+2, hybrid routes): integer CFR 24/25/30/50/60;
-#     NTSC 29.97/23.976/59.94 tagged 30/24/60 via AVS AssumeFPS (no DirectShow fps=/convertfps,
-#     no ffmpeg fps filter — those blend and look soft). QSV rejects NTSC rates.
+#   av1_qsv GPU encode stays on for all minute-segment exports (flat DLNA, fisheye pass-1+2,
+#     hybrid routes). Encoder is still -c:v av1_qsv CBR; only fps resample was removed.
+#     Integer CFR 24/25/30/50/60. NTSC 29.97/23.976/59.94 tagged 30/24/60 via AVS AssumeFPS
+#     (no DirectShow fps=/convertfps, no ffmpeg -vf fps= — those blend via AviSynth/QSV VPP
+#     and look soft). QSV rejects NTSC rates.
 #   Run start (fisheye + hybrid batches): Ensure-DlnaSegmentRoot -Force recreates trees and restores
 #     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit. If a leftover
 #     clear dest already exists (crashed run / 0-byte 3d_op), overwrite it with the mapped .tmp.
