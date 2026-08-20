@@ -217,6 +217,26 @@ function Get-HybridVideoFrameRateFraction {
     return $null
 }
 
+function ConvertTo-QsvIntegerFrameRateFraction {
+    param([int64] $Num, [int64] $Den)
+    $fps = if ($Num -gt 0 -and $Den -gt 0) { [double]$Num / [double]$Den } else { 30.0 }
+    $snapped = 30
+    $hit = $false
+    foreach ($t in @(24, 25, 30, 50, 60, 120)) {
+        if ([Math]::Abs($fps - $t) -lt 0.08) {
+            $snapped = $t
+            $hit = $true
+            break
+        }
+    }
+    if (-not $hit) {
+        $snapped = [int][Math]::Round($fps)
+        if ($snapped -lt 5) { $snapped = 5 }
+        if ($snapped -gt 120) { $snapped = 120 }
+    }
+    return @{ Num = [int64]$snapped; Den = 1L }
+}
+
 function Get-FlatTempAvsFileName {
     param([string] $MediaFullPath)
     $name = [System.IO.Path]::GetFileName($MediaFullPath)
@@ -228,7 +248,7 @@ function Export-FlatPassthroughAvsFromTemplate {
     .SYNOPSIS
       Build a flat Full-SBS AVS from StreamTo3D.fisheye_temp.template.avs (no StreamTo3D GUI).
       Placeholder StreamTo3D_input.mp4 -> source media; mono/narrow frames are StackHorizontal-duplicated to SBS.
-      convertfps=false (AssumeFPS only): DirectShow convertfps=true blends frames and blurs Full_SBS.
+      DirectShowSource has no fps=/convertfps (graph FRC blends). AssumeFPS tags integer CFR for QSV.
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -272,12 +292,13 @@ function Export-FlatPassthroughAvsFromTemplate {
         $fpsNum = $fpsParts.Num
         $fpsDen = $fpsParts.Den
     }
+    $qsvFps = ConvertTo-QsvIntegerFrameRateFraction -Num $fpsNum -Den $fpsDen
+    $fpsNum = $qsvFps.Num
+    $fpsDen = $qsvFps.Den
 
     $avsContent = $template.Replace($placeholder, $mediaFull)
     $avsContent = $avsContent.Replace('StreamTo3D_fps_num=30000', "StreamTo3D_fps_num=$fpsNum")
     $avsContent = $avsContent.Replace('StreamTo3D_fps_den=1001', "StreamTo3D_fps_den=$fpsDen")
-    # Keep native frames. convertfps=true uses AviSynth ConvertFPS (blend) and blurs hybrid Full_SBS.
-    $avsContent = $avsContent.Replace('convertfps=true', 'convertfps=false')
 
     $outAvsDir = [System.IO.Path]::GetDirectoryName($AvsOutFullPath)
     if (-not (Test-Path -LiteralPath $outAvsDir)) {

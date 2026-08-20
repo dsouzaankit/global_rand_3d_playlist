@@ -619,6 +619,9 @@ function Export-AvsFromFisheyeTemplate {
         $fpsNum = $fpsParts.Num
         $fpsDen = $fpsParts.Den
     }
+    $qsvFps = ConvertTo-QsvIntegerFrameRateFraction -Num $fpsNum -Den $fpsDen
+    $fpsNum = $qsvFps.Num
+    $fpsDen = $qsvFps.Den
     $fragPath = [System.IO.Path]::GetFullPath($FragMediaFullPath)
     $avsContent = $template.Replace($placeholder, $fragPath)
     $avsContent = $avsContent.Replace('StreamTo3D_fps_num=30000', "StreamTo3D_fps_num=$fpsNum")
@@ -629,6 +632,26 @@ function Export-AvsFromFisheyeTemplate {
     }
     [IO.File]::WriteAllText($AvsOutFullPath, $avsContent, [Text.UTF8Encoding]::new($false))
     Write-Host "Exported AVS ($count x '$placeholder' -> frag path; fps ${fpsNum}/${fpsDen}): $AvsOutFullPath"
+}
+
+function ConvertTo-QsvIntegerFrameRateFraction {
+    param([int64] $Num, [int64] $Den)
+    $fps = if ($Num -gt 0 -and $Den -gt 0) { [double]$Num / [double]$Den } else { 30.0 }
+    $snapped = 30
+    $hit = $false
+    foreach ($t in @(24, 25, 30, 50, 60, 120)) {
+        if ([Math]::Abs($fps - $t) -lt 0.08) {
+            $snapped = $t
+            $hit = $true
+            break
+        }
+    }
+    if (-not $hit) {
+        $snapped = [int][Math]::Round($fps)
+        if ($snapped -lt 5) { $snapped = 5 }
+        if ($snapped -gt 120) { $snapped = 120 }
+    }
+    return @{ Num = [int64]$snapped; Den = 1L }
 }
 
 function Get-VideoFrameRateFraction {
