@@ -305,6 +305,32 @@ function Get-VideoFrameRateArg {
     return $fps.ToString('0.######', [Globalization.CultureInfo]::InvariantCulture)
 }
 
+function ConvertTo-QsvSupportedFrameRateArg {
+    param([string] $FpsArg)
+    # Intel av1_qsv rejects NTSC 23.976/29.97/59.94 ("Current frame rate is unsupported").
+    # Snap to the nearest integer rate the QSV runtime actually accepts.
+    if ([string]::IsNullOrWhiteSpace($FpsArg)) { return $null }
+    $s = $FpsArg.Trim()
+    $fps = 0.0
+    if ($s -match '^(\d+)/(\d+)$') {
+        $den = [double]$Matches[2]
+        if ($den -le 0) { return $null }
+        $fps = [double]$Matches[1] / $den
+    } elseif (-not [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$fps)) {
+        return $null
+    }
+    if ($fps -lt 5 -or $fps -gt 120) { return $null }
+    foreach ($t in @(24.0, 25.0, 30.0, 50.0, 60.0, 120.0)) {
+        if ([Math]::Abs($fps - $t) -lt 0.08) {
+            return ([int]$t).ToString([Globalization.CultureInfo]::InvariantCulture)
+        }
+    }
+    $rounded = [int][Math]::Round($fps)
+    if ($rounded -lt 5) { $rounded = 5 }
+    if ($rounded -gt 120) { $rounded = 120 }
+    return $rounded.ToString([Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-FisheyeFlatPreV360Chain {
     param(
         [int] $EyeSize,
@@ -547,6 +573,55 @@ function Get-AvsEmbeddedFrameRateArg {
         }
     } catch { }
     return $null
+}
+
+function Resolve-QsvCfrFrameRateArg {
+    param(
+        [string] $AvsFullPath,
+        [string] $SourceMedia,
+        [string] $FfprobeExe,
+        [switch] $AsObject
+    )
+    $raw = $null
+    foreach ($fpsPath in @($AvsFullPath, $SourceMedia)) {
+        if ([string]::IsNullOrWhiteSpace($fpsPath) -or [string]::IsNullOrWhiteSpace($FfprobeExe)) { continue }
+        $raw = Get-VideoFrameRateArg -MediaPath $fpsPath -FfprobeExe $FfprobeExe
+        if (-not [string]::IsNullOrWhiteSpace($raw)) { break }
+    }
+    if ([string]::IsNullOrWhiteSpace($raw) -and -not [string]::IsNullOrWhiteSpace($AvsFullPath)) {
+        $raw = Get-AvsEmbeddedFrameRateArg -AvsFullPath $AvsFullPath
+    }
+    $snapped = ConvertTo-QsvSupportedFrameRateArg -FpsArg $raw
+    $resample = $false
+    if ([string]::IsNullOrWhiteSpace($snapped)) {
+        Write-Warning 'QSV CFR: could not probe fps; using -r 30 (av1_qsv requires integer CFR).'
+        $snapped = '30'
+        $resample = $true
+    } elseif (-not [string]::IsNullOrWhiteSpace($raw) -and $raw -ne $snapped) {
+        Write-Host "QSV CFR: source $raw fps -> -r $snapped (drop/dup only; av1_qsv rejects NTSC 23.976/29.97/59.94)."
+        $resample = $true
+    } else {
+        Write-Host "QSV CFR: -r $snapped"
+    }
+    if ($AsObject) {
+        return [pscustomobject]@{ Arg = $snapped; Source = $raw; Resample = $resample }
+    }
+    return $snapped
+}
+
+function Get-QsvCfrOutputArgs {
+    param(
+        [string] $FpsArg,
+        [bool] $Resample,
+        [switch] $AllowVideoFilter
+    )
+    # Drop/dup via fps= (no interpolation). Skip the filter when source is already integer
+    # so QSV does not run VPP frame-rate conversion (that path blends and looks blurred).
+    $outArgs = @('-r', $FpsArg, '-fps_mode', 'cfr')
+    if ($AllowVideoFilter -and $Resample) {
+        $outArgs = @('-vf', "fps=${FpsArg}:round=near,format=nv12") + $outArgs
+    }
+    return $outArgs
 }
 
 function Test-FisheyeTempTranscodeInput {
@@ -1316,6 +1391,7 @@ try {
             $fisheyeSettings.OutputHFov, $fisheyeSettings.OutputVFov, $FisheyeInterp, $FisheyeScaleFlags, `
             $sharpenLog, $FisheyeQsvPreset, $fisheyeMbps)
         $bufMbps = [Math]::Min(100, $fisheyeMbps * 2)
+        $qsvFps = Resolve-QsvCfrFrameRateArg -AvsFullPath $fullInput -SourceMedia $sourceMedia -FfprobeExe $ffprobeExe -AsObject
         $argList += @(
             '-filter_complex_threads', '0',
             '-i', $fullInput,
@@ -1328,6 +1404,8 @@ try {
             '-b:v', "${fisheyeMbps}M",
             '-maxrate', '100M',
             '-bufsize', "${bufMbps}M",
+            '-r', $qsvFps.Arg,
+            '-fps_mode', 'cfr',
             '-c:a', 'copy'
         ) + $segmentMuxerOutArgs + @($outPath)
     } else {
@@ -1338,27 +1416,10 @@ try {
     } else {
         @('-c:a', 'copy')
     }
-    $segmentFpsArgs = @()
-    if ($isFisheyeTempPass2) {
-        # Prefer AVS / embedded fps: growing mezzanine ffprobe returns unstable huge fractions (e.g. 11988/1) that QSV rejects.
-        $segmentFpsArg = $null
-        foreach ($fpsPath in @($fullInput, $sourceMedia)) {
-            if ([string]::IsNullOrWhiteSpace($fpsPath)) { continue }
-            $segmentFpsArg = Get-VideoFrameRateArg -MediaPath $fpsPath -FfprobeExe $ffprobeExe
-            if (-not [string]::IsNullOrWhiteSpace($segmentFpsArg)) { break }
-        }
-        if ([string]::IsNullOrWhiteSpace($segmentFpsArg)) {
-            $segmentFpsArg = Get-AvsEmbeddedFrameRateArg -AvsFullPath $fullInput
-        }
-        if (-not [string]::IsNullOrWhiteSpace($segmentFpsArg)) {
-            Write-Host "Fisheye pass-2 CFR: -r $segmentFpsArg"
-            $segmentFpsArgs = @('-r', $segmentFpsArg)
-        } else {
-            Write-Warning 'Fisheye pass-2: could not probe fps; output timing may drift.'
-        }
-    } else {
-        $segmentFpsArgs = @('-fps_mode', 'passthrough')
-    }
+    # Prefer AVS fps over a growing mezzanine (ffprobe can return huge fractions like 11988/1).
+    # Integer CFR for QSV: drop/dup only when snapping 29.97->30 (no ConvertFPS / VPP blend).
+    $segmentFps = Resolve-QsvCfrFrameRateArg -AvsFullPath $fullInput -SourceMedia $sourceMedia -FfprobeExe $ffprobeExe -AsObject
+    $segmentFpsArgs = Get-QsvCfrOutputArgs -FpsArg $segmentFps.Arg -Resample:([bool]$segmentFps.Resample) -AllowVideoFilter
     $argList += @(
         '-i', $fullInput,
         '-map', '0:v',

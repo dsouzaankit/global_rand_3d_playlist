@@ -104,6 +104,7 @@ Preferred root: `F:\f1_media\3d_fullsbs_trans` (Skybox web-client DLNA share pat
 |-----------------|-------------------|-------------------|
 | [transcode_logs](#under-3d_playlist_localindividual_transcodetranscode_logs) | `{each media}\3d_playlist_local\individual_transcode\transcode_logs\` | Default: every such folder found under `F:\f1_media`, `P:\bbf_media`, `P:\all_scripts`. **Recursive delete of all `*.log`**, including `orchestrator_child\`, `ffmpeg_process\`, `fisheye_batch\`, `fisheye_batch_prepare\`, `hybrid_batch\`, `hybrid_batch_prepare\`, `media_folder_watcher\`, and root transcripts/failures. Also removes `fisheye_batch_prepare\*.finished`. `-LocalOnly`: only the copy next to the script. |
 | [fisheye_temp\logs](#under-f1_media3d_fullsbs_transfisheye_templogs-global-shared-across-clips) | `F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs\` | Recursive delete of all `*.log` (pass-1 `*_v360.*.log`, chase worker `chase_*.log`). `-NoFisheyeTempLogs` skips. |
+| `3d_playlist_local\standardized\` | `{each media}\3d_playlist_local\standardized\` | Default: delete all files under every discoverable playlist `standardized\` (`selective_stdize.ps1` copies). `-NoStandardized` skips. `-LocalOnly`: only this playlist’s folder. Not run for `-LogsRoot` / `-PruneByCount`. |
 
 **Not removed by `Cleanup-TranscodeLogs.ps1`:**
 
@@ -129,7 +130,7 @@ Double-click or run from `individual_transcode\`:
 .\Cleanup-TranscodeLogs.ps1
 ```
 
-**Default:** **delete** all `*.log` under every discoverable playlist `transcode_logs\` tree (`F:\f1_media`, `P:\bbf_media`, `P:\all_scripts`) — including **`media_folder_watcher\`**, **`hybrid_batch*\`**, fisheye batch folders, orchestrator/ffmpeg children — and under `fisheye_temp\logs\`. Removes stale `*.finished` markers under `fisheye_batch_prepare\`. Logs held open by a running encode/watcher are truncated to 0 bytes instead of deleted.
+**Default:** **delete** all `*.log` under every discoverable playlist `transcode_logs\` tree (`F:\f1_media`, `P:\bbf_media`, `P:\all_scripts`) — including **`media_folder_watcher\`**, **`hybrid_batch*\`**, fisheye batch folders, orchestrator/ffmpeg children — and under `fisheye_temp\logs\`. Removes stale `*.finished` markers under `fisheye_batch_prepare\`. Also **deletes files** under every discoverable `3d_playlist_local\standardized\` (`-NoStandardized` skips). Logs held open by a running encode/watcher are truncated to 0 bytes instead of deleted.
 
 | Goal | Command |
 |------|---------|
@@ -137,7 +138,7 @@ Double-click or run from `individual_transcode\`:
 | Only this playlist’s `transcode_logs\` | `.\Cleanup-TranscodeLogs.ps1 -LocalOnly` |
 | Empty files in place (keep Explorer entries) | `.\Cleanup-TranscodeLogs.ps1 -TruncateInstead` |
 | Keep N newest transcripts/child logs (legacy retention) | `.\Cleanup-TranscodeLogs.ps1 -PruneByCount -LocalOnly` |
-| Skip global `fisheye_temp\logs` | `.\Cleanup-TranscodeLogs.ps1 -NoFisheyeTempLogs` |
+| Skip `standardized\` copies | `.\Cleanup-TranscodeLogs.ps1 -NoStandardized` |
 
 ### AVS (not logs) — `Purge-OldAvs.ps1`
 

@@ -7,6 +7,8 @@
   Default: delete all *.log under every discoverable playlist transcode_logs\ tree
   (F:\f1_media, P:\bbf_media, P:\all_scripts) plus global fisheye_temp\logs.
   Removes fisheye_batch_prepare\*.finished markers.
+  Also deletes files under every discoverable 3d_playlist_local\standardized\ (selective_stdize copies).
+  -NoStandardized skips that.
 
   Locked logs (active encode/batch) are truncated to zero bytes when delete fails.
 
@@ -30,6 +32,9 @@
 
 .PARAMETER NoFisheyeTempLogs
   Skip fisheye_temp\logs.
+
+.PARAMETER NoStandardized
+  Skip deleting files under 3d_playlist_local\standardized\ (selective_stdize copies).
 
 .PARAMETER TruncateInstead
   Empty files in place instead of deleting (files remain in Explorer).
@@ -59,7 +64,8 @@
 .EXAMPLE
   .\Cleanup-TranscodeLogs.ps1
 
-  Deletes logs under all discoverable playlist transcode_logs trees and fisheye_temp\logs.
+  Deletes logs under all discoverable playlist transcode_logs trees and fisheye_temp\logs,
+  and files under discoverable 3d_playlist_local\standardized\ folders.
 
 .EXAMPLE
   .\Cleanup-TranscodeLogs.ps1 -LocalOnly
@@ -79,6 +85,7 @@ param(
     [switch] $IncludeFisheyeTempLogs,
     [string] $FisheyeTempLogsRoot = 'F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs',
     [switch] $NoFisheyeTempLogs,
+    [switch] $NoStandardized,
     [switch] $TruncateInstead,
     [switch] $PruneByCount,
     [int] $MaxTranscriptFiles = 2,
@@ -229,6 +236,57 @@ function Get-DiscoverableTranscodeLogsRoots {
     return @($seen | Sort-Object)
 }
 
+function Get-DiscoverableStandardizedRoots {
+    param(
+        [string] $ScriptPlaylistLocal,
+        [string[]] $MediaRoots,
+        [switch] $LocalOnly
+    )
+    $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $localStd = Join-Path $ScriptPlaylistLocal 'standardized'
+    [void]$seen.Add([System.IO.Path]::GetFullPath($localStd))
+    if ($LocalOnly.IsPresent) {
+        return @($seen | Sort-Object)
+    }
+
+    foreach ($mediaRoot in $MediaRoots) {
+        if ([string]::IsNullOrWhiteSpace($mediaRoot) -or -not (Test-Path -LiteralPath $mediaRoot -PathType Container)) {
+            continue
+        }
+        $playlistDirs = @(Get-ChildItem -LiteralPath $mediaRoot -Directory -Recurse -Filter '3d_playlist_local' -ErrorAction SilentlyContinue)
+        foreach ($pd in $playlistDirs) {
+            $std = Join-Path $pd.FullName 'standardized'
+            if (Test-Path -LiteralPath $std -PathType Container) {
+                [void]$seen.Add([System.IO.Path]::GetFullPath($std))
+            }
+        }
+    }
+
+    return @($seen | Sort-Object)
+}
+
+function Invoke-DeleteStandardizedUnderRoot {
+    param([string] $Root)
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) {
+        Write-Host "[standardized] not found: $Root"
+        return @{ Deleted = 0; Failed = 0 }
+    }
+    $files = @(Get-ChildItem -LiteralPath $Root -File -Recurse -Force -ErrorAction SilentlyContinue)
+    $deleted = 0
+    $failed = 0
+    foreach ($f in $files) {
+        try {
+            Remove-Item -LiteralPath $f.FullName -Force -ErrorAction Stop
+            $deleted++
+        } catch {
+            Write-Warning "Could not delete standardized copy: $($f.FullName) ($_)"
+            $failed++
+        }
+    }
+    Write-Host "[standardized] deleted $deleted file(s); failed $failed - $Root"
+    return @{ Deleted = $deleted; Failed = $failed }
+}
+
 function Invoke-DeleteAllLogsUnderRoot {
     param(
         [string] $Root,
@@ -319,6 +377,7 @@ $scriptPath = if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) {
     [System.IO.Path]::GetFullPath($MyInvocation.MyCommand.Path)
 }
 $scriptDir = [System.IO.Path]::GetDirectoryName($scriptPath)
+$playlistLocalDir = [System.IO.Path]::GetDirectoryName($scriptDir)
 $localLogsRoot = if ([string]::IsNullOrWhiteSpace($LogsRoot)) {
     [System.IO.Path]::Combine($scriptDir, 'transcode_logs')
 } else {
@@ -388,6 +447,26 @@ if ($PruneByCount) {
         }
     }
 
+    if (-not $NoStandardized -and -not $PSBoundParameters.ContainsKey('LogsRoot')) {
+        $stdRoots = if ($LocalOnly) {
+            Get-DiscoverableStandardizedRoots -ScriptPlaylistLocal $playlistLocalDir -MediaRoots @() -LocalOnly
+        } else {
+            Get-DiscoverableStandardizedRoots -ScriptPlaylistLocal $playlistLocalDir -MediaRoots $DiscoverMediaRoots
+        }
+        Write-Host ''
+        Write-Host "Playlist standardized roots ($($stdRoots.Count)):"
+        foreach ($r in $stdRoots) { Write-Host "  $r" }
+        Write-Host ''
+        foreach ($root in $stdRoots) {
+            $stats = Invoke-DeleteStandardizedUnderRoot -Root $root
+            if ($stats.Deleted -gt 0 -or $stats.Failed -gt 0 -or (Test-Path -LiteralPath $root -PathType Container)) {
+                $anyRoot = $true
+            }
+            $totalDeleted += $stats.Deleted
+            $totalFailed += $stats.Failed
+        }
+    }
+
     if ($anyRoot) {
         Write-Host ''
         Write-Host "Total: deleted $totalDeleted, truncated $totalTruncated, failed $totalFailed"
@@ -395,7 +474,7 @@ if ($PruneByCount) {
 }
 
 if (-not $anyRoot) {
-    Write-Host 'No log roots found to clean.'
+    Write-Host 'No log or standardized roots found to clean.'
 }
 
 if (-not $NoPause) {

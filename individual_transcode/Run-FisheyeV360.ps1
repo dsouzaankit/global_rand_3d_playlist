@@ -127,6 +127,30 @@ function Get-VideoFrameRateArg {
     return $null
 }
 
+function ConvertTo-QsvSupportedFrameRateArg {
+    param([string] $FpsArg)
+    if ([string]::IsNullOrWhiteSpace($FpsArg)) { return $null }
+    $s = $FpsArg.Trim()
+    $fps = 0.0
+    if ($s -match '^(\d+)/(\d+)$') {
+        $den = [double]$Matches[2]
+        if ($den -le 0) { return $null }
+        $fps = [double]$Matches[1] / $den
+    } elseif (-not [double]::TryParse($s, [System.Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$fps)) {
+        return $null
+    }
+    if ($fps -lt 5 -or $fps -gt 120) { return $null }
+    foreach ($t in @(24.0, 25.0, 30.0, 50.0, 60.0, 120.0)) {
+        if ([Math]::Abs($fps - $t) -lt 0.08) {
+            return ([int]$t).ToString([Globalization.CultureInfo]::InvariantCulture)
+        }
+    }
+    $rounded = [int][Math]::Round($fps)
+    if ($rounded -lt 5) { $rounded = 5 }
+    if ($rounded -gt 120) { $rounded = 120 }
+    return $rounded.ToString([Globalization.CultureInfo]::InvariantCulture)
+}
+
 function Get-FisheyeFlatPreV360Chain {
     param(
         [int] $EyeSize, [int] $PerEyeW, [int] $PerEyeH,
@@ -284,7 +308,14 @@ $filter = Get-FisheyeFilterComplex -EyeSize $settings.EyeSize `
     -OutputHFov $settings.OutputHFov -OutputVFov $settings.OutputVFov `
     -Interp $FisheyeInterp -SharpenAmount $FisheyeSharpen -ScaleFlags $FisheyeScaleFlags `
     -FlatSource:(-not $settings.IsSbs)
-$sourceFpsArg = Get-VideoFrameRateArg -MediaPath $fullInput -FfprobeExe $ffprobeExe
+$sourceFpsRaw = Get-VideoFrameRateArg -MediaPath $fullInput -FfprobeExe $ffprobeExe
+$sourceFpsArg = ConvertTo-QsvSupportedFrameRateArg -FpsArg $sourceFpsRaw
+if ([string]::IsNullOrWhiteSpace($sourceFpsArg)) {
+    $sourceFpsArg = '30'
+    Write-Warning 'QSV CFR: could not probe fps; using -r 30 (av1_qsv requires integer CFR).'
+} elseif (-not [string]::IsNullOrWhiteSpace($sourceFpsRaw) -and $sourceFpsRaw -ne $sourceFpsArg) {
+    Write-Host "QSV CFR: source $sourceFpsRaw fps -> -r $sourceFpsArg (av1_qsv rejects NTSC 23.976/29.97/59.94)."
+}
 $layout = if ($settings.IsSbs) { 'SBS L/R' } else { 'flat -> single fisheye eye' }
 $mbps = $VideoBitrateMbps
 if ($mbps -lt 1) { throw "VideoBitrateMbps must be >= 1 (got $VideoBitrateMbps)." }

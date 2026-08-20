@@ -228,6 +228,7 @@ function Export-FlatPassthroughAvsFromTemplate {
     .SYNOPSIS
       Build a flat Full-SBS AVS from StreamTo3D.fisheye_temp.template.avs (no StreamTo3D GUI).
       Placeholder StreamTo3D_input.mp4 -> source media; mono/narrow frames are StackHorizontal-duplicated to SBS.
+      convertfps=false (AssumeFPS only): DirectShow convertfps=true blends frames and blurs Full_SBS.
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -275,6 +276,8 @@ function Export-FlatPassthroughAvsFromTemplate {
     $avsContent = $template.Replace($placeholder, $mediaFull)
     $avsContent = $avsContent.Replace('StreamTo3D_fps_num=30000', "StreamTo3D_fps_num=$fpsNum")
     $avsContent = $avsContent.Replace('StreamTo3D_fps_den=1001', "StreamTo3D_fps_den=$fpsDen")
+    # Keep native frames. convertfps=true uses AviSynth ConvertFPS (blend) and blurs hybrid Full_SBS.
+    $avsContent = $avsContent.Replace('convertfps=true', 'convertfps=false')
 
     $outAvsDir = [System.IO.Path]::GetDirectoryName($AvsOutFullPath)
     if (-not (Test-Path -LiteralPath $outAvsDir)) {

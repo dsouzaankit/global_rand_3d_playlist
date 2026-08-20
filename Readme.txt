@@ -9,6 +9,9 @@ Run sequence:
 #   throws and the batch stops — unmount it so the dummy letter can be created. Do not pick
 #   another drive letter on conflict: Skybox's share, Explorer context-menu registry, and
 #   script paths are all fixed at F:\f1_media\3d_fullsbs_trans.
+#   av1_qsv (flat DLNA, fisheye pass-1+2, hybrid routes): integer CFR 24/25/30/50/60;
+#     NTSC 29.97/23.976/59.94 snapped to 30/24/60 — QSV rejects those rates.
+#     Snap is drop/dup only (no AviSynth ConvertFPS / QSV VPP blend). Hybrid flat AVS uses convertfps=false.
 #   Run start (fisheye + hybrid batches): Ensure-DlnaSegmentRoot -Force recreates trees and restores
 #     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit. If a leftover
 #     clear dest already exists (crashed run / 0-byte 3d_op), overwrite it with the mapped .tmp.
@@ -56,6 +59,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #   Syncs individual_transcode from P:\all_scripts\3d_playlist_local; Purge-OldAvs -KeepCount 50 under .\avs
 #     (purge skips if .\avs is missing; hybrid recreates it on first flat AVS write)
 #   Fixed 2d_media_paths.txt queue (no live media_files watcher).
+#   av1_qsv integer CFR (flat + fisheye routes): 24/25/30/50/60; NTSC 29.97 snapped to 30 (drop/dup, no blend).
 #   Per clip probes format/stream bitrate + v:0 codec_name (Resolve-HybridWorkflowRoute.ps1):
 #     flat when: (<4 Mbps AND not hevc/av1) OR (<2 Mbps AND hevc/av1); otherwise fisheye
 #   Per clip: if already-3D (Test-Skip3dFormattedMediaName / Test-RandSkipStreamTo3DMediaName)
@@ -64,6 +68,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #     fisheye -> Run-V360PrepareFisheye -AutoChaseTranscode -ChaseSync -SegmentNameSuffix LR_180_FISHEYE
 #               -> F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180_FISHEYE.mkv
 #     flat    -> Export StreamTo3D.fisheye_temp.template.avs (no StreamTo3D GUI; StackHorizontal if not SBS)
+#               convertfps=false (no AviSynth blend); QSV 29.97->30 is drop/dup only.
 #               -> Run-TranscodeFfmpeg -SegmentNameSuffix Full_SBS
 #               -> F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv
 #   Minute segments multiplexed to one folder; Sync-DlnaHybridSegmentHandoff retires prior-suffix leaves
@@ -95,6 +100,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 #   F:\f1_media\3d_fullsbs_trans\fisheye\3d_op_%02d_LR_180_FISHEYE.mkv  (two rotating ~60s buffers)
 #   As-is already-3D: F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180.mkv (-c copy -re)
 #   Pass 1: fisheye_temp\{base}.fisheye.frag.mp4  (Run-FisheyeV360.ps1, av1_qsv 50M)
+#     integer CFR 24/25/30/50/60; NTSC 29.97 snapped to 30 (QSV rejects 29.97; drop/dup, no blend)
 #   Pass 2: Run-V360PrepareFisheye.ps1 chase -> Run-TranscodeFfmpeg.ps1 on fisheye_temp\avs\*.avs
 #     ffmpeg: -segment_time 60 -segment_wrap 2 -reset_timestamps 1 -readrate 1 (viewing pace)
 #     Chase rounds alternate -segment_start_number 0/1 + -t 60 per round
@@ -105,6 +111,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 
 # FLAT DLNA (orchestrator on playlist .avs — classic path; hybrid flat uses template AVS instead):
 #   Run-TranscodeOrchestrator.ps1 -> Run-TranscodeFfmpeg.ps1 per .avs
+#   av1_qsv integer CFR (24/25/30/50/60); NTSC 29.97 snapped to 30 (QSV rejects 29.97; drop/dup, no blend).
 #   Classic/Skybox flat slots: F:\f1_media\3d_fullsbs_trans\flat\3d_op_%02d_Full_SBS.mkv
 #   Hybrid multiplex slots:    F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv (shared with fisheye route)
 #   -segment_time 60 -segment_wrap 2 (one invocation per clip; no chase alternation)
