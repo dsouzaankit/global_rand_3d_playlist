@@ -4,8 +4,8 @@ Run sequence:
 # Transcode:     robocopy from P:\all_scripts\3d_playlist_local\individual_transcode on batch start
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
 # selective_stdize / faststart: not run from this tree. Media-folder 3d_playlist_local batches
-#   remux MP4/MOV/M4V in place when moov is at EOF, and encode vertical clips to standardized\.
-#   No IPA needed (Loop Segments does not remux vanilla).
+#   remux MP4/MOV/M4V in place only when codecs are AVFoundation-incompatible (not H.264/HEVC
+#   + AAC; MPEG-4 Visual/mp4v counts as incompatible, H.264/avc1 does not) and moov is at EOF, and encode vertical clips to standardized\. No IPA needed.
 # DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; dummy subst F: during run via
 #                Ensure-DlnaSegmentRoot; never a real F: volume; quit clears dummy letter)
 #   If a real F: (or subst to some other folder) is already mapped, Ensure-DlnaSegmentRoot
