@@ -6,9 +6,9 @@
 .DESCRIPTION
   Dot-source from Invoke-LeafFfmpegControl.ps1.
   Process start / hide-to-tray / quit and the AirScreen share (p_cld_media by default)
-  come from P:\all_scripts\Skybox_vr_pc (SkyboxVrPc.UnmapPath.ps1). This file keeps the
-  workflow-started marker and maps/unmaps 3d_fullsbs_trans. Override the Skybox_vr_pc
-  root with SKYBOX_VR_PC_ROOT.
+  come from the Skybox_vr_pc git submodule (SkyboxVrPc.UnmapPath.ps1), then
+  P:\all_scripts\Skybox_vr_pc. This file keeps the workflow-started marker and
+  maps/unmaps 3d_fullsbs_trans. Override the Skybox_vr_pc root with SKYBOX_VR_PC_ROOT.
 #>
 
 $script:PlaylistSkyboxDlnaFolderName = '3d_fullsbs_trans'
@@ -20,14 +20,12 @@ function Get-PlaylistSkyboxVrPcRoot {
     if (-not [string]::IsNullOrWhiteSpace($envRoot)) {
         [void]$candidates.Add($envRoot.Trim())
     }
-    [void]$candidates.Add('P:\all_scripts\Skybox_vr_pc')
     $walk = $PSScriptRoot
     for ($i = 0; $i -lt 6 -and $walk; $i++) {
+        [void]$candidates.Add((Join-Path $walk 'Skybox_vr_pc'))
         $walk = Split-Path -Parent $walk
-        if ($walk) {
-            [void]$candidates.Add((Join-Path $walk 'Skybox_vr_pc'))
-        }
     }
+    [void]$candidates.Add('P:\all_scripts\Skybox_vr_pc')
     foreach ($root in $candidates) {
         if ([string]::IsNullOrWhiteSpace($root)) { continue }
         try {
@@ -51,7 +49,7 @@ if ($script:PlaylistSkyboxVrPcRootResolved) {
     . (Join-Path $script:PlaylistSkyboxVrPcRootResolved 'SkyboxVrPc.UnmapPath.ps1')
     $script:PlaylistSkyboxVrPcImported = $true
 } else {
-    Write-Warning '[skybox] Skybox_vr_pc not found (expected P:\all_scripts\Skybox_vr_pc or SKYBOX_VR_PC_ROOT).'
+    Write-Warning '[skybox] Skybox_vr_pc not found (expected ./Skybox_vr_pc submodule, P:\all_scripts\Skybox_vr_pc, or SKYBOX_VR_PC_ROOT).'
 }
 
 function Get-SkyboxPcClientStartedMarkerPath {

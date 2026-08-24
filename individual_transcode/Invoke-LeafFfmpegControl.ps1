@@ -172,7 +172,7 @@ function Write-DlnaSkyboxDriveConflictWarning {
 }
 
 
-# Skybox PC client: process + AirScreen share from P:\all_scripts\Skybox_vr_pc;
+# Skybox PC client: process + AirScreen share from the Skybox_vr_pc submodule;
 # 3d_fullsbs_trans mapping and workflow-started marker in Get-PlaylistSkybox.ps1.
 $playlistSkybox = Join-Path $PSScriptRoot 'Get-PlaylistSkybox.ps1'
 if (-not (Test-Path -LiteralPath $playlistSkybox -PathType Leaf)) {
@@ -336,7 +336,7 @@ function Ensure-DlnaSegmentRoot {
       Never write onto a real M:.
       Quit clears the dummy letter we mapped. Used by flat, fisheye, and hybrid.
       On ensure, restores any <sha256>.tmp media left from a prior quit (via .dlna_obf_map.json).
-      Starts the Skybox PC client if idle via P:\all_scripts\Skybox_vr_pc (tray hide + AirScreen share),
+      Starts the Skybox PC client if idle via the Skybox_vr_pc submodule (tray hide + AirScreen share),
       then adds the live 3d_fullsbs_trans Add-folders mapping. Log/manual cleanup passes -SkipSkyboxClient.
     #>
     param(

@@ -3,6 +3,7 @@ Run sequence:
 # Canonical:     P:\all_scripts\global_rand_3d_playlist  (run here; no F:\all_scripts hub)
 # Transcode:     robocopy from P:\all_scripts\3d_playlist_local\individual_transcode on batch start
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
+#                Skybox PC client helpers: git submodule Skybox_vr_pc (github.com/dsouzaankit/skybox-vr-pc)
 # selective_stdize / faststart: not run from this tree. Media-folder 3d_playlist_local batches
 #   remux MP4/MOV/M4V in place only when codecs are AVFoundation-incompatible (not H.264/HEVC
 #   + AAC; MPEG-4 Visual/mp4v counts as incompatible, H.264/avc1 does not) and moov is at EOF, and encode vertical clips to standardized\. No IPA needed.
@@ -10,7 +11,7 @@ Run sequence:
 #                Ensure-DlnaSegmentRoot; never a real M: volume; quit clears dummy letter)
 #   If a real M: (or subst to some other folder) is already mapped, a free D-Z letter is used
 #   ({letter}:\m1_media\3d_fullsbs_trans) and Skybox Add folders is remapped to that path.
-#   On start: Skybox PC client if idle via P:\all_scripts\Skybox_vr_pc (exe / Steam, hide to tray,
+#   On start: Skybox PC client if idle via the Skybox_vr_pc submodule (exe / Steam, hide to tray,
 #     wait for :8018), maps the AirScreen share (p_cld_media from skybox_vr_pc.config.json), then
 #     adds/updates Add folders 3d_fullsbs_trans. Does not touch Loop Segments pcld_ios_media / L:.
 #   Set 3D_PLAYLIST_SKIP_SKYBOX=1 to skip launching Skybox (mappings still sync if it is already up).
