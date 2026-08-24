@@ -4,6 +4,7 @@ Run sequence:
 # Transcode:     robocopy from P:\all_scripts\3d_playlist_local\individual_transcode on batch start
 # Other deps:    P:\all_scripts\py_venv1, P:\all_scripts\setup_venv.bat, P:\all_scripts\AutoHotkey
 #                Skybox PC client helpers: git submodule Skybox_vr_pc (github.com/dsouzaankit/skybox-vr-pc)
+#                After clone: git submodule update --init. Override root with SKYBOX_VR_PC_ROOT.
 # selective_stdize / faststart: not run from this tree. Media-folder 3d_playlist_local batches
 #   remux MP4/MOV/M4V in place only when codecs are AVFoundation-incompatible (not H.264/HEVC
 #   + AAC; MPEG-4 Visual/mp4v counts as incompatible, H.264/avc1 does not) and moov is at EOF, and encode vertical clips to standardized\. No IPA needed.
@@ -15,6 +16,9 @@ Run sequence:
 #     wait for :8018), maps the AirScreen share (p_cld_media from skybox_vr_pc.config.json), then
 #     adds/updates Add folders 3d_fullsbs_trans. Does not touch Loop Segments pcld_ios_media / L:.
 #   Set 3D_PLAYLIST_SKIP_SKYBOX=1 to skip launching Skybox (mappings still sync if it is already up).
+#   If Skybox is already running, the started-by-workflow marker is kept (hidden pass-2 / leaf children
+#     must not wipe it). Explorer context-menu quit obfuscates AppData before the close pause and skips
+#     that obfuscate only when a follow-up batch process actually started.
 #   Leftover dummy f1_media\ / k1_media\ parents under the subst mount are removed when empty.
 #   av1_qsv GPU encode stays on for all minute-segment exports (flat DLNA, fisheye pass-1+2,
 #     hybrid routes). Encoder is still -c:v av1_qsv CBR; only fps resample was removed.
@@ -72,7 +76,8 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #   Per clip probes format/stream bitrate + v:0 codec_name (Resolve-HybridWorkflowRoute.ps1):
 #     flat when: (<4 Mbps AND not hevc/av1) OR (<2 Mbps AND hevc/av1); otherwise fisheye
 #   Per clip: if already-3D (Test-Skip3dFormattedMediaName / Test-RandSkipStreamTo3DMediaName)
-#     -> Run-SegmentCopyAsIs (-c copy -re) into ...\hybrid\ (Get-AsIsDlnaSegmentSuffix); else:
+#     -> Run-SegmentCopyAsIs (-c copy -re) into ...\hybrid\ (Get-AsIsDlnaSegmentSuffix). As-is remux
+#     ignores encode bitrate / -maxrate caps; -BatchTimeoutSec still applies. Else:
 #   Routes:
 #     fisheye -> Run-V360PrepareFisheye -AutoChaseTranscode -ChaseSync -SegmentNameSuffix LR_180_FISHEYE
 #               -> M:\m1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180_FISHEYE.mkv
@@ -104,6 +109,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 #   -SkipPotPlayer to skip gate; -DryRun to preview queue; -SkipPotPlayerSeek for 0s start on every clip
 #   Already-3D (Test-RandSkipStreamTo3DMediaName): Run-SegmentCopyAsIs -> ...\hybrid\ (not skipped; no prepare/chase)
+#     As-is remux ignores encode bitrate / -maxrate caps; batch deadline still applies.
 #   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy M:
 #
 # DLNA output (same 60-second segment rules as 3d_playlist_local; see that Readme + individual_transcode\LOGS.md):
