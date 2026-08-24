@@ -18,7 +18,7 @@
     -No duration-based scaling on -ContextMenu (batch uses -WorkflowDeadlineUtc from queue start; no scaling either).
     -Pass-2 ffmpeg uses TranscodeTimeoutSec -1; only the workflow deadline stops encode (exit 124).
 
-  Output under F:\f1_media\3d_fullsbs_trans\fisheye_temp (scripts in individual_transcode\):
+  Output under M:\m1_media\3d_fullsbs_trans\fisheye_temp (scripts in individual_transcode\):
    - mezzanine pass 1: fisheye_temp\{base}.fisheye.frag.mp4 (av1_qsv 50M)
    - AVS (one at a time): fisheye_temp\avs\StreamTo3D.fisheye_temp.{sourceFile}.avs
       (passthrough template; no StreamTo3D MDepan / motion stereo on fisheye mezzanine)
@@ -31,7 +31,7 @@
 param(
     [Parameter(Mandatory = $false)]
     [string] $LiteralPath,
-    [string] $FisheyeOutputRoot = 'F:\f1_media\3d_fullsbs_trans\fisheye_temp',
+    [string] $FisheyeOutputRoot = 'M:\m1_media\3d_fullsbs_trans\fisheye_temp',
     [string] $SegmentOutputDirectory = '',
     [string] $SegmentNameSuffix = '',
     [int] $SegmentVideoBitrateMbps = 0,
@@ -95,18 +95,27 @@ $leafFfmpegControlScript = Join-Path $thisScriptDir 'Invoke-LeafFfmpegControl.ps
 if (Test-Path -LiteralPath $leafFfmpegControlScript -PathType Leaf) {
     . $leafFfmpegControlScript
 }
-# Recreate dummy F:\f1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
+# Recreate dummy M:\m1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
 if (Get-Command Ensure-DlnaSegmentRoot -ErrorAction SilentlyContinue) {
     [void](Ensure-DlnaSegmentRoot -Force)
 }
 if ((Get-Command Get-FisheyeTempRoot -ErrorAction SilentlyContinue) -and
-    ($FisheyeOutputRoot -eq 'F:\f1_media\3d_fullsbs_trans\fisheye_temp')) {
-    # Prefer helper so fisheye_temp lands under the ensured root (same path string after subst).
+    (Get-Command Test-DlnaPlaceholderSharePath -ErrorAction SilentlyContinue) -and
+    (Test-DlnaPlaceholderSharePath -Path $FisheyeOutputRoot)) {
+    $FisheyeOutputRoot = Get-FisheyeTempRoot
+} elseif ((Get-Command Get-FisheyeTempRoot -ErrorAction SilentlyContinue) -and
+    ($FisheyeOutputRoot -eq 'M:\m1_media\3d_fullsbs_trans\fisheye_temp' -or
+     $FisheyeOutputRoot -eq 'K:\k1_media\3d_fullsbs_trans\fisheye_temp' -or
+     $FisheyeOutputRoot -eq 'F:\f1_media\3d_fullsbs_trans\fisheye_temp')) {
     $FisheyeOutputRoot = Get-FisheyeTempRoot
 }
 $fisheyeOutputRootFull = [System.IO.Path]::GetFullPath($FisheyeOutputRoot)
 $segmentOutputRootFull = if (-not [string]::IsNullOrWhiteSpace($SegmentOutputDirectory)) {
-    [System.IO.Path]::GetFullPath($SegmentOutputDirectory)
+    $segDir = $SegmentOutputDirectory
+    if (Get-Command Convert-DlnaPlaceholderSharePath -ErrorAction SilentlyContinue) {
+        $segDir = Convert-DlnaPlaceholderSharePath -Path $segDir
+    }
+    [System.IO.Path]::GetFullPath($segDir)
 } elseif (Get-Command Get-DlnaSegmentOutputDirectory -ErrorAction SilentlyContinue) {
     Get-DlnaSegmentOutputDirectory -Kind fisheye
 } else {

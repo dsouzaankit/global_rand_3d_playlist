@@ -6,12 +6,15 @@ Run sequence:
 # selective_stdize / faststart: not run from this tree. Media-folder 3d_playlist_local batches
 #   remux MP4/MOV/M4V in place only when codecs are AVFoundation-incompatible (not H.264/HEVC
 #   + AAC; MPEG-4 Visual/mp4v counts as incompatible, H.264/avc1 does not) and moov is at EOF, and encode vertical clips to standardized\. No IPA needed.
-# DLNA output:   F:\f1_media\3d_fullsbs_trans  (Skybox share; dummy subst F: during run via
-#                Ensure-DlnaSegmentRoot; never a real F: volume; quit clears dummy letter)
-#   If a real F: (or subst to some other folder) is already mapped, Ensure-DlnaSegmentRoot
-#   throws and the batch stops — unmount it so the dummy letter can be created. Do not pick
-#   another drive letter on conflict: Skybox's share, Explorer context-menu registry, and
-#   script paths are all fixed at F:\f1_media\3d_fullsbs_trans.
+# DLNA output:   M:\m1_media\3d_fullsbs_trans  (Skybox PC-client share; dummy subst M: during run via
+#                Ensure-DlnaSegmentRoot; never a real M: volume; quit clears dummy letter)
+#   If a real M: (or subst to some other folder) is already mapped, a free D-Z letter is used
+#   ({letter}:\m1_media\3d_fullsbs_trans) and Skybox Add folders is remapped to that path.
+#   On start: Skybox PC client if idle via P:\all_scripts\Skybox_vr_pc (exe / Steam, hide to tray,
+#     wait for :8018), maps the AirScreen share (p_cld_media from skybox_vr_pc.config.json), then
+#     adds/updates Add folders 3d_fullsbs_trans. Does not touch Loop Segments pcld_ios_media / L:.
+#   Set 3D_PLAYLIST_SKIP_SKYBOX=1 to skip launching Skybox (mappings still sync if it is already up).
+#   Leftover dummy f1_media\ / k1_media\ parents under the subst mount are removed when empty.
 #   av1_qsv GPU encode stays on for all minute-segment exports (flat DLNA, fisheye pass-1+2,
 #     hybrid routes). Encoder is still -c:v av1_qsv CBR; only fps resample was removed.
 #     Integer CFR 24/25/30/50/60. NTSC 29.97/23.976/59.94 tagged 30/24/60 via AVS AssumeFPS
@@ -21,9 +24,9 @@ Run sequence:
 #     any <sha256>.tmp media and .avs (via .dlna_obf_map.json) from a prior quit. If a leftover
 #     clear dest already exists (crashed run / 0-byte 3d_op), overwrite it with the mapped .tmp.
 #     Unmapped .tmp (empty/missing map) stay hashed — Cleanup-DlnaSegmentRoot.ps1 to delete.
-#   Run quit (both batches finally): Invoke-DlnaWorkflowQuitCleanup obfuscates media and .avs to
+#   Run quit (both batches finally): Invoke-DlnaWorkflowQuitCleanup removes Skybox Add-folders 3d_fullsbs_trans and the Skybox_vr_pc AirScreen share, then obfuscates media and .avs to
 #     <sha256(relativePath)>.tmp (scrambled .dlna_obf_map.json; includes fisheye_temp\avs\*.avs),
-#     then Remove-DlnaSegmentRootSubst (clears dummy subst F: + junction).
+#     then Remove-DlnaSegmentRootSubst (clears dummy subst M: + junction).
 #   On error: same obfuscate, but -KeepLogs retains *.log / logs\ (including fisheye_temp\logs).
 #     Triggers: clip/child failures, fatal batch stop (exit 1).
 #     Batch timeout (124) and user cancel (130) purge DLNA-root logs like clean success.
@@ -71,12 +74,12 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #     -> Run-SegmentCopyAsIs (-c copy -re) into ...\hybrid\ (Get-AsIsDlnaSegmentSuffix); else:
 #   Routes:
 #     fisheye -> Run-V360PrepareFisheye -AutoChaseTranscode -ChaseSync -SegmentNameSuffix LR_180_FISHEYE
-#               -> F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180_FISHEYE.mkv
+#               -> M:\m1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180_FISHEYE.mkv
 #     flat    -> Export StreamTo3D.fisheye_temp.template.avs (no StreamTo3D GUI).
 #               Same idea as flat's per-clip .avs (path + fps filled in), but passthrough only:
 #               DirectShowSource + AssumeFPS integer + StackHorizontal if 2D (no 2D->3D / MDepan).
 #               -> Run-TranscodeFfmpeg -SegmentNameSuffix Full_SBS
-#               -> F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv
+#               -> M:\m1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv
 #   Minute segments multiplexed to one folder; Sync-DlnaHybridSegmentHandoff retires prior-suffix leaves
 #     gradually after the new wrap pair starts writing (keep ~two playable); clip end -Finalize cleans up.
 #   Flat AVS written as .\avs\StreamTo3D.flat_temp.{source}.avs (mkdir if needed)
@@ -86,7 +89,7 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 #   -SkipPotPlayer / -DryRun / -SkipPotPlayerSeek / -ResumeAfter same as fisheye batch
 #   Ref: https://skybox.xyz/support/How-to-Adjust-2D&3D&VR-Video-Formats
 #   Logs: individual_transcode\LOGS.md (after sync) + transcode_logs\hybrid_batch\
-#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy F:
+#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy M:
 
 # =============================================================================
 # FISHEYE-only batch (v360 mezzanine + DLNA chase; uses 2d_media_paths.txt, not local media_files)
@@ -100,11 +103,11 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_vr_hybrid_rand.ps1
 P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 #   -SkipPotPlayer to skip gate; -DryRun to preview queue; -SkipPotPlayerSeek for 0s start on every clip
 #   Already-3D (Test-RandSkipStreamTo3DMediaName): Run-SegmentCopyAsIs -> ...\hybrid\ (not skipped; no prepare/chase)
-#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy F:
+#   Start: restores mapped <sha256>.tmp (overwrite leftover clear dest); Quit: obfuscates + clears dummy M:
 #
 # DLNA output (same 60-second segment rules as 3d_playlist_local; see that Readme + individual_transcode\LOGS.md):
-#   F:\f1_media\3d_fullsbs_trans\fisheye\3d_op_%02d_LR_180_FISHEYE.mkv  (two rotating ~60s buffers)
-#   As-is already-3D: F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180.mkv (-c copy -re)
+#   M:\m1_media\3d_fullsbs_trans\fisheye\3d_op_%02d_LR_180_FISHEYE.mkv  (two rotating ~60s buffers)
+#   As-is already-3D: M:\m1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_LR_180.mkv (-c copy -re)
 #   Pass 1: fisheye_temp\{base}.fisheye.frag.mp4  (Run-FisheyeV360.ps1, av1_qsv 50M)
 #     integer CFR 24/25/30/50/60; NTSC 29.97 tagged 30 via AssumeFPS (QSV rejects 29.97)
 #   Pass 2: Run-V360PrepareFisheye.ps1 chase -> Run-TranscodeFfmpeg.ps1 on fisheye_temp\avs\*.avs
@@ -118,8 +121,8 @@ P:\all_scripts\global_rand_3d_playlist\run_batch_fisheye_rand.ps1
 # FLAT DLNA (orchestrator on playlist .avs — classic path; hybrid flat uses template AVS instead):
 #   Run-TranscodeOrchestrator.ps1 -> Run-TranscodeFfmpeg.ps1 per .avs
 #   av1_qsv integer CFR (24/25/30/50/60); NTSC 29.97 tagged 30 via AssumeFPS (QSV rejects 29.97).
-#   Classic/Skybox flat slots: F:\f1_media\3d_fullsbs_trans\flat\3d_op_%02d_Full_SBS.mkv
-#   Hybrid multiplex slots:    F:\f1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv (shared with fisheye route)
+#   Classic/Skybox flat slots: M:\m1_media\3d_fullsbs_trans\flat\3d_op_%02d_Full_SBS.mkv
+#   Hybrid multiplex slots:    M:\m1_media\3d_fullsbs_trans\hybrid\3d_op_%02d_Full_SBS.mkv (shared with fisheye route)
 #   -segment_time 60 -segment_wrap 2 (one invocation per clip; no chase alternation)
 
 Notes:

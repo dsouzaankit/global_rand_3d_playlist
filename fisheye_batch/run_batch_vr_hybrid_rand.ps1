@@ -46,7 +46,7 @@ $playlistLocal = $projectRoot
 $mediaRoot = $projectRoot
 $syncSource = Get-RandTranscodeSyncSource
 
-# Ensure Skybox DLNA root (dummy subst F: + AppData store) before any Join-Path on F:\... (pwsh validates drive letters).
+# Ensure Skybox DLNA root (dummy subst M: + AppData store) before any Join-Path on M:\... (pwsh validates drive letters).
 $leafEarly = Join-Path $syncSource 'individual_transcode\Invoke-LeafFfmpegControl.ps1'
 if (-not (Test-Path -LiteralPath $leafEarly -PathType Leaf)) {
     $leafEarly = Join-Path $projectRoot 'individual_transcode\Invoke-LeafFfmpegControl.ps1'
@@ -743,7 +743,13 @@ $batchDeadlineUtc = Convert-BatchUtcIsoToDateTime -UtcIso $batchDeadlineUtcIso
 if ($BatchTimeoutSec -gt 0 -and -not [string]::IsNullOrWhiteSpace($batchDeadlineUtcIso)) {
     Write-Host "Batch deadline (UTC): $batchDeadlineUtcIso (~$(Get-BatchRemainingSeconds -DeadlineUtc $batchDeadlineUtc)s remaining)"
 }
-$batchShellExe = (Get-Command powershell -ErrorAction Stop).Source
+$pwshCmd = Get-Command pwsh -ErrorAction SilentlyContinue
+if ($null -ne $pwshCmd) {
+    $batchShellExe = $pwshCmd.Source
+} else {
+    $batchShellExe = (Get-Command powershell -ErrorAction Stop).Source
+}
+Write-Host "Batch child shell: $batchShellExe"
 $batchPrepareLogsRoot = Join-Path $playlistLocal 'individual_transcode\transcode_logs\hybrid_batch_prepare'
 
 try {
@@ -953,7 +959,8 @@ try {
                 $asisArgs += @('-BatchStdOutLog', $childLogs.StdOut)
                 Clear-BatchPendingConsoleKeys
                 $childProc = Start-BatchHiddenPowerShellFile -Arguments $asisArgs `
-                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe
+                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe `
+                    -RedirectStandardError $childLogs.StdErr
                 if ($null -eq $childProc) {
                     throw 'Could not start as-is segment copy shell.'
                 }
@@ -983,7 +990,8 @@ try {
                 $prepareArgs += @('-BatchStdOutLog', $childLogs.StdOut)
                 Clear-BatchPendingConsoleKeys
                 $childProc = Start-BatchHiddenPowerShellFile -Arguments $prepareArgs `
-                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe
+                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe `
+                    -RedirectStandardError $childLogs.StdErr
                 if ($null -eq $childProc) {
                     throw 'Could not start fisheye prepare/chase shell.'
                 }
@@ -1014,7 +1022,8 @@ try {
                 $childLogs = New-HybridBatchChildLogPaths -LogsRoot $batchPrepareLogsRoot -MediaFullPath $mediaFull -Kind 'flat'
                 Clear-BatchPendingConsoleKeys
                 $childProc = Start-BatchHiddenPowerShellFile -Arguments $flatArgs `
-                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe
+                    -WorkingDirectory $playlistLocal -ShellExe $batchShellExe `
+                    -RedirectStandardError $childLogs.StdErr
                 if ($null -eq $childProc) {
                     throw 'Could not start flat template-AVS transcode shell.'
                 }

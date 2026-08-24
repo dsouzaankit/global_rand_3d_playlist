@@ -5,7 +5,7 @@
 
 .DESCRIPTION
   Default: delete all *.log under every discoverable playlist transcode_logs\ tree
-  (F:\f1_media, P:\bbf_media, P:\all_scripts) plus global fisheye_temp\logs.
+  (M:\m1_media, F:\f1_media, P:\bbf_media, P:\all_scripts) plus global fisheye_temp\logs.
   Removes fisheye_batch_prepare\*.finished markers.
   Also deletes files under every discoverable 3d_playlist_local\standardized\ (selective_stdize copies).
   -NoStandardized skips that.
@@ -28,7 +28,7 @@
   Also delete *.log under FisheyeTempLogsRoot. Default: true.
 
 .PARAMETER FisheyeTempLogsRoot
-  Global fisheye pass-1 / chase-worker logs. Default: F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs
+  Global fisheye pass-1 / chase-worker logs. Default: M:\m1_media\3d_fullsbs_trans\fisheye_temp\logs
 
 .PARAMETER NoFisheyeTempLogs
   Skip fisheye_temp\logs.
@@ -81,9 +81,9 @@
 param(
     [string] $LogsRoot = '',
     [switch] $LocalOnly,
-    [string[]] $DiscoverMediaRoots = @('F:\f1_media', 'P:\bbf_media', 'P:\all_scripts'),
+    [string[]] $DiscoverMediaRoots = @('M:\m1_media', 'F:\f1_media', 'P:\bbf_media', 'P:\all_scripts'),
     [switch] $IncludeFisheyeTempLogs,
-    [string] $FisheyeTempLogsRoot = 'F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs',
+    [string] $FisheyeTempLogsRoot = 'M:\m1_media\3d_fullsbs_trans\fisheye_temp\logs',
     [switch] $NoFisheyeTempLogs,
     [switch] $NoStandardized,
     [switch] $TruncateInstead,
@@ -108,8 +108,9 @@ if (Test-Path -LiteralPath $leafFfmpegControlScript -PathType Leaf) {
 }
 if (Get-Command Ensure-DlnaSegmentRoot -ErrorAction SilentlyContinue) {
     try {
-        [void](Ensure-DlnaSegmentRoot)
-        if ($FisheyeTempLogsRoot -eq 'F:\f1_media\3d_fullsbs_trans\fisheye_temp\logs' -and
+        [void](Ensure-DlnaSegmentRoot -SkipSkyboxClient)
+        if ((Get-Command Test-DlnaPlaceholderSharePath -ErrorAction SilentlyContinue) -and
+            (Test-DlnaPlaceholderSharePath -Path $FisheyeTempLogsRoot) -and
             (Get-Command Get-FisheyeTempRoot -ErrorAction SilentlyContinue)) {
             $FisheyeTempLogsRoot = Join-Path (Get-FisheyeTempRoot) 'logs'
         }

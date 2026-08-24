@@ -4,22 +4,22 @@
   Manually delete/truncate all files under the DLNA segment root (3d_fullsbs_trans).
 
 .DESCRIPTION
-  Workflows (fisheye / hybrid rand batches) obfuscate media filenames on quit instead of deleting.
+  Workflows (flat / fisheye / hybrid) obfuscate media filenames on quit instead of deleting.
   Use this script when you want the former delete-on-quit behavior. It calls the function
   Clear-DlnaSegmentRootContents (not a folder) in individual_transcode\Invoke-LeafFfmpegControl.ps1:
     - stop leaf 3d_op_* ffmpeg
-    - delete or truncate files under F:\f1_media\3d_fullsbs_trans
+    - delete or truncate files under M:\m1_media\3d_fullsbs_trans
       (flat / fisheye / hybrid / fisheye_temp segments + avs\*.avs, <hash>.tmp,
       .dlna_obf_map.json, logs)
     - recreate empty flat / fisheye / hybrid / fisheye_temp trees
 
-  Lives beside Readme.txt so you can double-click it from the playlist root. The delete logic
-  stays in Invoke-LeafFfmpegControl.ps1.
+  Lives beside Readme.txt / Purge-OldAvs.ps1 so you can double-click it from the playlist
+  root. The delete logic stays in Invoke-LeafFfmpegControl.ps1.
 
-  Double-click friendly. See Readme.txt / individual_transcode\LOGS.md.
+  Double-click friendly. See Readme.txt / LOGS.md.
 
 .PARAMETER Root
-  Override DLNA root. Default: Ensure-DlnaSegmentRoot (preferred F:\f1_media\3d_fullsbs_trans).
+  Override DLNA root. Default: Ensure-DlnaSegmentRoot (preferred M:\m1_media\3d_fullsbs_trans).
 
 .PARAMETER KeepLogs
   Leave *.log and logs\ trees in place.

@@ -16,6 +16,7 @@
   For .avs: ffprobe/resume rules use DirectShowSource path embedded in the AVS when present (fisheye_temp template AVS);
   otherwise finds source two folders up (..\\..\\); basename drops StreamTo3D., optional embedded media ext
   (e.g. .mp4 in name.mp4.avs), then .avs; flat DLNA segment mux always uses -readrate 1 (segment_wrap 2 viewing pace);
+  av1_qsv segment encode uses integer CFR (-r 24/25/30/50/60; NTSC 29.97 tagged 30 via AVS AssumeFPS — no fps filter);
   height/bitrate probes are logged only (legacy -re gates removed for flat path). Seek (-ss) is checked against ffprobe format=duration on the same probe path
   unless -NoClampSeek: if resume is past the usable end (duration minus 0.25s tail), ffmpeg is skipped (exit 0) so the
   orchestrator can treat the clip as done and continue the playlist. Pass -NoClampSeek to send the raw seek to ffmpeg instead.
@@ -56,7 +57,7 @@
   Seek in milliseconds when >= 0. Default -1 reads RememberFiles registry position (else 0 ms).
 
 .PARAMETER OutputDirectory
-  Output folder. Default: F:\f1_media\3d_fullsbs_trans\flat (minute segments). Fisheye pass-2 /
+  Output folder. Default: M:\m1_media\3d_fullsbs_trans\flat (minute segments). Fisheye pass-2 /
   prepare pass -SegmentOutputDirectory / -OutputDirectory for ...\fisheye. The file name pattern is fixed
   (see $HardcodedOutputFilePattern below).
 
@@ -146,7 +147,7 @@
 param(
     [Parameter(Mandatory = $false)]
     [string] $LiteralPath,
-    [string] $OutputDirectory = 'F:\f1_media\3d_fullsbs_trans\flat',
+    [string] $OutputDirectory = 'M:\m1_media\3d_fullsbs_trans\flat',
     [int] $SsMsOverride = -1,
     [string] $Ffmpeg = 'ffmpeg',
     [string] $LogFile = '',
@@ -213,9 +214,12 @@ $leafFfmpegControlScript = Join-Path $thisScriptDir 'Invoke-LeafFfmpegControl.ps
 if (Test-Path -LiteralPath $leafFfmpegControlScript -PathType Leaf) {
     . $leafFfmpegControlScript
 }
-# Recreate dummy F:\f1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
+# Recreate dummy M:\m1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
 if (Get-Command Ensure-DlnaSegmentRoot -ErrorAction SilentlyContinue) {
     [void](Ensure-DlnaSegmentRoot -Force)
+}
+if (Get-Command Convert-DlnaPlaceholderSharePath -ErrorAction SilentlyContinue) {
+    $OutputDirectory = Convert-DlnaPlaceholderSharePath -Path $OutputDirectory
 }
 
 # Segmented output pattern; ffmpeg rotates 2 segment files (wrap 2). Skybox suffixes: LR_180_FISHEYE / Full_SBS.

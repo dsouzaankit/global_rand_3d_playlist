@@ -13,7 +13,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string] $LiteralPath,
-    [string] $OutputDirectory = 'F:\f1_media\3d_fullsbs_trans\hybrid',
+    [string] $OutputDirectory = 'M:\m1_media\3d_fullsbs_trans\hybrid',
     [string] $SegmentNameSuffix = 'LR_180',
     [int] $SsMsOverride = -1,
     [string] $Ffmpeg = 'ffmpeg',
@@ -47,9 +47,12 @@ $leafFfmpegControlScript = Join-Path $thisScriptDir 'Invoke-LeafFfmpegControl.ps
 if (Test-Path -LiteralPath $leafFfmpegControlScript -PathType Leaf) {
     . $leafFfmpegControlScript
 }
-# Recreate dummy F:\f1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
+# Recreate dummy M:\m1_media\3d_fullsbs_trans (Skybox DLNA path) via %AppData% junction+subst.
 if (Get-Command Ensure-DlnaSegmentRoot -ErrorAction SilentlyContinue) {
     [void](Ensure-DlnaSegmentRoot -Force)
+}
+if (Get-Command Convert-DlnaPlaceholderSharePath -ErrorAction SilentlyContinue) {
+    $OutputDirectory = Convert-DlnaPlaceholderSharePath -Path $OutputDirectory
 }
 $resolveFisheyeScript = Join-Path $thisScriptDir 'Resolve-FisheyePlaylistMedia.ps1'
 if (Test-Path -LiteralPath $resolveFisheyeScript -PathType Leaf) {

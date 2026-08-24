@@ -43,16 +43,16 @@ if (-not (Test-Path -LiteralPath $v360Prepare)) {
 }
 
 # %L = long path; Explorer expands it before PowerShell runs.
-# Keep F:\f1_media\3d_fullsbs_trans in the registry so Skybox DLNA share path stays stable;
-# Ensure-DlnaSegmentRoot maps that path via dummy subst F: + %AppData% junction.
+# Keep M:\m1_media\3d_fullsbs_trans in the registry so Skybox DLNA share path stays stable;
+# Ensure-DlnaSegmentRoot maps that path via dummy subst M: + %AppData% junction.
 $leafFfmpegControlScript = Join-Path $installDir 'Invoke-LeafFfmpegControl.ps1'
 if (Test-Path -LiteralPath $leafFfmpegControlScript -PathType Leaf) {
     . $leafFfmpegControlScript
 }
 $dlnaSegmentRoot = if (Get-Command Ensure-DlnaSegmentRoot -ErrorAction SilentlyContinue) {
-    Ensure-DlnaSegmentRoot
+    Ensure-DlnaSegmentRoot -SkipSkyboxClient
 } else {
-    'F:\f1_media\3d_fullsbs_trans'
+    'M:\m1_media\3d_fullsbs_trans'
 }
 $flatSegmentDir = if (Get-Command Get-DlnaSegmentOutputDirectory -ErrorAction SilentlyContinue) {
     Get-DlnaSegmentOutputDirectory -Kind flat -Root $dlnaSegmentRoot
